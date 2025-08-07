@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Camera & Flash Control</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
+    video, img { border: 1px solid #ccc; margin-top: 10px; max-width: 90vw; height: auto; }
+    button { margin: 10px; padding: 10px 20px; font-size: 16px; }
+    #downloadLink { display: block; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Camera Flash Control</h2>
+  <video id="video" width="320" height="240" autoplay playsinline></video><br>
+  <button id="captureBtn">Take Photo & Flash</button>
+  <button id="switchBtn">Switch Camera</button><br>
+  <img id="photo" style="display:none; margin-top:10px;" />
+  <a id="downloadLink" style="display:none;">Download Photo</a>
+
+  <script>
+    let video = document.getElementById('video');
+    let photo = document.getElementById('photo');
+    let downloadLink = document.getElementById('downloadLink');
+    let captureBtn = document.getElementById('captureBtn');
+    let switchBtn = document.getElementById('switchBtn');
+
+    let currentStream = null;
+    let useFrontCamera = true;
+
+    async function startCamera() {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+      try {
+        currentStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: useFrontCamera ? "user" : "environment" }
+        });
+        video.srcObject = currentStream;
+      } catch(err) {
+        alert("Cannot access camera: " + err);
+      }
+    }
+
+    captureBtn.onclick = () => {
+      // عکس گرفتن
+      let canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 320;
+      canvas.height = video.videoHeight || 240;
+      let ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      let dataUrl = canvas.toDataURL('image/png');
+      photo.src = dataUrl;
+      photo.style.display = "block";
+
+      // لینک دانلود عکس
+      downloadLink.href = dataUrl;
+      downloadLink.download = 'photo.png';
+      downloadLink.style.display = 'inline';
+      downloadLink.textContent = 'Download Photo';
+
+      // درخواست روشن کردن رله به ESP32
+      fetch('/flash')
+        .then(response => response.text())
+        .then(data => alert(data))
+        .catch(err => alert('Error: ' + err));
+    };
+
+    switchBtn.onclick = () => {
+      useFrontCamera = !useFrontCamera;
+      startCamera();
+    };
+
+    // شروع دوربین
+    startCamera();
+  </script>
+</body>
+</html>
